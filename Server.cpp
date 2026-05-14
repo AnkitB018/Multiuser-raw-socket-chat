@@ -27,7 +27,7 @@ using namespace std;
 #define RED "\033[31m"
 
 
-#define PORT "3456"
+
 #define backlog 10
 
 
@@ -289,8 +289,15 @@ void handle_received_message(int &i, int &sockfd, map<int, string> &usernames, i
 
 
 
-int main()
+int main(int argc, char* argv[])
 {
+    string PORT;
+    if(argc >= 2){
+        PORT = argv[1];
+    }else{
+        PORT = "3456";
+    }
+
     cout << "--------------------------SERVER--------------------------" << endl;
     struct addrinfo hints, *res;
     struct sockaddr_storage their_addr;
@@ -305,7 +312,7 @@ int main()
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    int status = ::getaddrinfo(NULL, PORT, &hints, &res); // get addresses assigned from hints and now info in res
+    int status = ::getaddrinfo(NULL, PORT.c_str(), &hints, &res); // get addresses assigned from hints and now info in res
     if (status != 0)
     {
         // handle error

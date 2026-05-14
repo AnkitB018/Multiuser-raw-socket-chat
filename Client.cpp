@@ -22,20 +22,32 @@ using namespace std;
 #define RED "\033[31m"
 
 
-#define IP "127.0.0.1"
-#define PORT "3456"
 
-int main(){
+int main(int argc, char* argv[]){
+    string IP;
+    string PORT = "3456";
+
+    if(argc >= 2){
+        IP = argv[1];
+    }else{
+        IP = "127.0.0.1";
+    }
+    if(argc >= 3){
+        PORT = argv[2];
+    }
+
     cout<<"---------------------CLIENT---------------------"<<endl;
     cout<<MAGENTA<<"Commands:\n\nAnything that start with a '/' is treated as command\n/users: Username of all connected users\n/rename name: change your current username to 'name'\n/msg user text: Use for private messaging, here text will be sent to user\n"<<RESET<<endl;
     struct addrinfo hints, *res;
     fd_set master, read_fds; 
 
+
+
     memset(&hints,0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    int s = ::getaddrinfo(IP, PORT, &hints, &res);
+    int s = ::getaddrinfo(IP.c_str(), PORT.c_str(), &hints, &res);
     if(s != 0){
         fprintf(stderr, "get_addrinfo: %s\n", gai_strerror(s));
         exit(1);
@@ -77,7 +89,7 @@ int main(){
         cout<<RED<<"Username already taken, try something else"<<RESET<<endl;
 
     }
-    
+
     FD_ZERO(&master);
     FD_SET(sockfd, &master);
     FD_SET(0, &master);

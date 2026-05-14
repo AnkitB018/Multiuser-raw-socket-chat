@@ -49,10 +49,30 @@ g++ client.cpp -o client
 ./server
 ```
 
+Or specify a custom port:
+
+```bash
+./server 8080
+```
+
+---
+
 ### 3. Start Client(s)
 
 ```bash
 ./client
+```
+
+Connect to a custom IP:
+
+```bash
+./client 192.168.1.10
+```
+
+Connect to a custom IP and port:
+
+```bash
+./client 192.168.1.10 8080
 ```
 
 - Enter a username (duplicates are rejected)
@@ -62,6 +82,8 @@ g++ client.cpp -o client
 
 ## 📌 Notes
 
+- If custom IP for client is not selected, 127.0.0.1 is will be used.
+- For both client and server, if port is not defined then 3456 is used.
 - The server handles multiple clients using `select()` (event-loop based, no multithreading)
 - ANSI escape codes are used for colored terminal output
 - Designed as a learning project for low-level networking and system design
