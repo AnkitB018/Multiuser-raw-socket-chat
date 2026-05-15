@@ -3,7 +3,8 @@
 #include <netdb.h> //address resolution functions
 #include <sys/socket.h> //socket functions
 
-ChatServer::ChatServer(std::string port){
+
+ChatServer::ChatServer(std::string port, int clients){
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints)); //initialize hints with 0s
 
@@ -18,9 +19,20 @@ ChatServer::ChatServer(std::string port){
         exit(1);
     }
 
+    sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if(sockfd == -1){
+        perror("socket");
+        exit(1);
+    }
+
     if (::bind(sockfd, res->ai_addr, res->ai_addrlen) == -1)
     { //:: makes it use global namespace not std
         perror("bind");
+        exit(1);
+    }
+
+    if(listen(sockfd, clients) == -1){
+        perror("listen");
         exit(1);
     }
 
@@ -34,6 +46,32 @@ ChatServer::ChatServer(std::string port){
     //fd sets are initialized, listning socket is ready.
 }
 
-void ChatServer::run(int clients = 10){
-    //start with listen
+
+Event ChatServer::run(){
+    //start with select
+    struct Event result{};
+    read_fds = master;
+
+    if(select(fd_max+1, &read_fds, NULL, NULL, NULL) == -1){ //block till event occurs
+        perror("select");
+        return result;
+    }
+
+    //check which event and update Event accordingly
+    for(int i=0 ; i<=fd_max ; i++){
+        if(FD_ISSET(i, &read_fds)){
+            if(i == sockfd){
+                //received new connection
+                result = handle_new_connections();
+            }else if(i == 0){
+                result = send_message();
+            }else{
+                result = handle_received_message(i);
+            }
+            return result;
+        }
+    }
+
+    return result;
+
 }
