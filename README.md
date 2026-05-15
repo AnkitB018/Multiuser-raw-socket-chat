@@ -92,7 +92,7 @@ Connect to a custom IP and port:
 
 ## 📦 Future Improvements
 
-- Refactor into reusable class/library
+- Refactor into reusable class/library (under work inside lib)
 
 ---
 
