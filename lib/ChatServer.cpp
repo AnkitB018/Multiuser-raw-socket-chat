@@ -102,9 +102,11 @@ Event ChatServer::handle_new_connections()
         fd_max = newfd;
     }
 
+    result.type = NONE;
     return result;
 
 }
+
 
 
 Event ChatServer::send_message(){
@@ -112,12 +114,15 @@ Event ChatServer::send_message(){
     std::cin.clear();
     std::getline(std::cin, msg);
     struct Event result{};
+    result.type = SERVER;
+    msg = 'S'+msg;
+    result.message = msg;
 
     for (int j = 1; j <= fd_max; j++)
     {
         if (FD_ISSET(j, &master) && j != sockfd)
         {
-            if (::send(j, msg.c_str(), msg.size(), 0) == -1)
+            if (send(j, msg.c_str(), msg.size(), 0) == -1)
             {
                 perror("send");
                 continue;
@@ -136,13 +141,14 @@ Event ChatServer::handle_received_message(int i){
     // 6. receive data from clients
     bytes = recv(i, buffer, sizeof(buffer) - 1, 0);
     Event result{};
+    result.type=NONE;
 
     if (bytes <= 0)
     {
         //close connection
         if (usernames.find(i) != usernames.end())
         {
-            std::string msg = usernames[i] + " left the chat ";
+            std::string msg = "L"+usernames[i] + " left the chat ";
             result.type = USER_LEFT;
             result.message = msg;
             for (int j = 1; j <= fd_max; j++)
@@ -172,19 +178,17 @@ Event ChatServer::handle_received_message(int i){
             std::string name = buffer;
             for(auto user:usernames){
                 if(user.second == name){
-                    Event temp{};
-                    temp.type = ERROR;
-                    temp.message = "Username already taken";
-                    if(::send(i, temp.message.c_str(), temp.message.size() , 0) == -1){
+                    std::string temp;
+                    temp = "EUsername already taken";
+                    if(::send(i, temp.c_str(), temp.size() , 0) == -1){
                         perror("send");
                     }
-                    return temp;
+                    return result;
                 }
             }
 
             usernames[i] = name;
-            Event temp{};
-            result.message = name + " joined the chat ";
+            result.message = "J" + name + " joined the chat ";
             result.type = USER_JOIN;
 
             for (int j = 1; j <= fd_max; j++)
@@ -203,13 +207,14 @@ Event ChatServer::handle_received_message(int i){
             }
 
         }
+
         //handle commands
         else if(buffer[0] == '/'){
             return handle_commands(buffer, i);
         }else{
 
             // breoadcast the received message
-            std::string full_msg = usernames[i] + ": " + buffer;
+            std::string full_msg = "M" +usernames[i] + ": " + buffer;
             result.message = full_msg;
             result.type = MESSAGE;
             for (int j = 1; j <= fd_max; j++)
@@ -230,4 +235,100 @@ Event ChatServer::handle_received_message(int i){
     }
 
     return result;
+}
+
+Event ChatServer::handle_commands(char* buffer,int i){
+    Event result{};
+    result.type = NONE;
+    std::string msg = buffer;
+    bool error = false;
+    int pos = msg.find(' ');
+    std::string cmd;
+    if(pos == std::string::npos){
+        cmd = msg.substr(1);
+    }else{
+        cmd = msg.substr(1, pos-1);
+    }
+
+    std::string ans = "";
+    if(cmd == "users"){
+        for(auto user:usernames){
+            ans += user.second + "\n";
+        }
+    }else if(cmd == "rename"){
+        int next = msg.find(' ', pos+1);
+        std::string arg;
+        if(next == std::string::npos){
+            arg = msg.substr(pos+1);
+        }else{
+            arg = msg.substr(pos+1, next-pos);
+        }
+
+        if(arg.size() > 10){
+            ans = "username too long, length must be less than 11\n";
+            error = true;
+        }else{
+            for(auto user:usernames){
+                if(user.second == arg){
+                    ans = "Username already taken, try something else!\n";
+                    error = true;
+                }
+            }
+            if(!error){
+                usernames[i] = arg;
+                ans = "Username changed successfully!\n";
+            }
+        }
+
+    }else if(cmd == "msg"){
+        // private message 
+        int next = msg.find(' ', pos+1);
+        std::string name = msg.substr(pos+1, next-pos-1);
+        if(next != std::string::npos && next+1<msg.size()){
+            std::string text = msg.substr(next+1);
+            int sock = -1;
+            for(auto user:usernames){
+                if(user.second == name){
+                    sock = user.first;
+                    break;
+                }
+            }
+            if(sock == -1){
+                error = true;
+                ans = "Username not found\n";
+            }else{
+                std::string privat = "";
+                privat = "P" + usernames[i] + ": " + text + "\n";
+                privat = privat;
+                if(send(sock, privat.c_str(), privat.size(), 0)==-1){
+                    perror("send");
+                }
+                ans = "Message sent successfully!\n";
+
+            }
+
+        }else{
+            error = true;
+            ans = "Add some message to send\n";
+        }
+        
+
+    }else{
+        ans = "Invalid command\n";
+        error = true;
+    }
+
+    if(error){
+        ans = "E"+ans;
+    }else{
+        ans = "S"+ans;
+    }
+
+    if(::send(i, ans.c_str(), ans.size(), 0) == -1){
+        perror("send");
+    }
+    
+    //no need to return anything valuable to server here
+    return result;
+
 }

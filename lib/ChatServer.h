@@ -5,10 +5,13 @@
 #pragma once //makes sure header is included only once
 
 enum EventType{
-    MESSAGE,
-    USER_JOIN,
-    USER_LEFT,
-    ERROR
+    NONE, //N
+    SERVER, //S
+    MESSAGE, //M
+    USER_JOIN, //J
+    USER_LEFT, //L
+    ERROR, //E
+    PERSONAL //P
 };
 
 struct Event{
