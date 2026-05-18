@@ -2,6 +2,7 @@
 #include<./ChatServer.h>
 #include <netdb.h> //address resolution functions
 #include <sys/socket.h> //socket functions
+#include <unistd.h>
 
 
 ChatServer::ChatServer(std::string port, int clients){
@@ -25,7 +26,7 @@ ChatServer::ChatServer(std::string port, int clients){
         exit(1);
     }
 
-    if (::bind(sockfd, res->ai_addr, res->ai_addrlen) == -1)
+    if (bind(sockfd, res->ai_addr, res->ai_addrlen) == -1)
     { //:: makes it use global namespace not std
         perror("bind");
         exit(1);
@@ -74,4 +75,159 @@ Event ChatServer::run(){
 
     return result;
 
+}
+
+
+Event ChatServer::handle_new_connections()
+{
+
+    struct Event result{};
+    struct sockaddr_storage their_addr;
+    socklen_t addr_size;
+    addr_size = sizeof(their_addr);
+
+    int newfd = ::accept(sockfd, (struct sockaddr *)&their_addr, &addr_size);
+    if (newfd == -1)
+    {
+        perror("accpet");
+        result.type = ERROR;
+        result.message = "accept error";
+        return result;
+    }
+
+    // add connection to fd set
+    FD_SET(newfd, &master);
+    if (newfd > fd_max)
+    {
+        fd_max = newfd;
+    }
+
+    return result;
+
+}
+
+
+Event ChatServer::send_message(){
+    std::string msg;
+    std::cin.clear();
+    std::getline(std::cin, msg);
+    struct Event result{};
+
+    for (int j = 1; j <= fd_max; j++)
+    {
+        if (FD_ISSET(j, &master) && j != sockfd)
+        {
+            if (::send(j, msg.c_str(), msg.size(), 0) == -1)
+            {
+                perror("send");
+                continue;
+            }
+        }
+    }
+
+    return result;
+}
+
+
+
+Event ChatServer::handle_received_message(int i){
+    int bytes;
+    char buffer[1024];
+    // 6. receive data from clients
+    bytes = recv(i, buffer, sizeof(buffer) - 1, 0);
+    Event result{};
+
+    if (bytes <= 0)
+    {
+        //close connection
+        if (usernames.find(i) != usernames.end())
+        {
+            std::string msg = usernames[i] + " left the chat ";
+            result.type = USER_LEFT;
+            result.message = msg;
+            for (int j = 1; j <= fd_max; j++)
+            {
+                if (FD_ISSET(j, &master))
+                {
+                    if (j != sockfd && j != i)
+                    {
+                        if (send(j, msg.c_str(), msg.size(), 0) == -1)
+                        {
+                            perror("send");
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        FD_CLR(i, &master);
+        close(i);
+    }else
+    {
+        buffer[bytes] = '\0';
+
+        // check if this is the first message, meaning this is the username
+        if (usernames.find(i) == usernames.end())
+        {
+            std::string name = buffer;
+            for(auto user:usernames){
+                if(user.second == name){
+                    Event temp{};
+                    temp.type = ERROR;
+                    temp.message = "Username already taken";
+                    if(::send(i, temp.message.c_str(), temp.message.size() , 0) == -1){
+                        perror("send");
+                    }
+                    return temp;
+                }
+            }
+
+            usernames[i] = name;
+            Event temp{};
+            result.message = name + " joined the chat ";
+            result.type = USER_JOIN;
+
+            for (int j = 1; j <= fd_max; j++)
+            {
+                if (FD_ISSET(j, &master))
+                {
+                    if (j != sockfd)
+                    {
+                        if (::send(j, result.message.c_str(), result.message.size(), 0) == -1)
+                        {
+                            perror("send");
+                            continue;
+                        }
+                    }
+                }
+            }
+
+        }
+        //handle commands
+        else if(buffer[0] == '/'){
+            return handle_commands(buffer, i);
+        }else{
+
+            // breoadcast the received message
+            std::string full_msg = usernames[i] + ": " + buffer;
+            result.message = full_msg;
+            result.type = MESSAGE;
+            for (int j = 1; j <= fd_max; j++)
+            {
+                if (FD_ISSET(j, &master))
+                {
+                    if (j != sockfd )
+                    {
+                        if (::send(j, full_msg.c_str(), full_msg.size(), 0) == -1)
+                        {
+                            perror("send");
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
 }

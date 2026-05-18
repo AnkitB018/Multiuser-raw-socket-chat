@@ -32,5 +32,5 @@ class ChatServer{
         Event handle_new_connections();
         Event send_message();
         Event handle_received_message(int i);
-        Event handle_commands();
+        Event handle_commands(char *buffer, int i);
 };
