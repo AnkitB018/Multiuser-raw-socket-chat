@@ -8,7 +8,10 @@
 class ChatClient{
     private:
         int sockfd;
+        fd_set master, read_fds;
+        int fd_max;
+        Event select_username();
     public:
-        ChatClient(int PORT, std::string IP);
+        ChatClient(std::string PORT, std::string IP);
         Event run();
 };
