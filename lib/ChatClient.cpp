@@ -1,5 +1,5 @@
 #include <iostream>
-#include <./ChatClient.h>
+#include "./ChatClient.h"
 #include <netdb.h>      //address resolution functions
 #include <sys/socket.h> //socket functions
 #include <unistd.h>
@@ -105,14 +105,34 @@ Event ChatClient::run()
                 int bytes = ::recv(sockfd, buffer, sizeof(buffer) - 1, 0);
                 if (bytes <= 0)
                 {
-                    result.type = ERROR;
+                    result.type = FATAL;
                     result.message = "Server disconnected";
-                    exit(0);
+                    return result;
                 }
                 buffer[bytes] = '\0';
                 std::string msg(buffer);
                 
+                if(msg[0] == 'S'){
+                    result.type= SERVER;
+                    result.message = msg.substr(1);
+                }else if(msg[0] == 'M'){
+                    result.type = MESSAGE;
+                    result.message = msg.substr(1);
+                }else if(msg[0] == 'J'){
+                    result.type = USER_JOIN;
+                    result.message = msg.substr(1);
+                }else if(msg[0] == 'L'){
+                    result.type = USER_LEFT;
+                    result.message = msg.substr(1);
+                }else if(msg[0] == 'P'){
+                    result.type = PERSONAL;
+                    result.message = msg.substr(1);
+                }
+                return result;
             }
+            
         }
+
     }
+    return result;
 }

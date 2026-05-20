@@ -1,5 +1,5 @@
 #include<iostream>
-#include<./ChatServer.h>
+#include"./ChatServer.h"
 #include <netdb.h> //address resolution functions
 #include <sys/socket.h> //socket functions
 #include <unistd.h>
@@ -116,7 +116,7 @@ Event ChatServer::send_message(){
     struct Event result{};
     result.type = SERVER;
     msg = 'S'+msg;
-    result.message = msg;
+    result.message = msg.substr(1);
 
     for (int j = 1; j <= fd_max; j++)
     {
@@ -150,7 +150,7 @@ Event ChatServer::handle_received_message(int i){
         {
             std::string msg = "L"+usernames[i] + " left the chat ";
             result.type = USER_LEFT;
-            result.message = msg;
+            result.message = msg.substr(1);
             for (int j = 1; j <= fd_max; j++)
             {
                 if (FD_ISSET(j, &master))
@@ -205,6 +205,7 @@ Event ChatServer::handle_received_message(int i){
                     }
                 }
             }
+            result.message = result.message.substr(1);
 
         }
 
@@ -215,7 +216,7 @@ Event ChatServer::handle_received_message(int i){
 
             // breoadcast the received message
             std::string full_msg = "M" +usernames[i] + ": " + buffer;
-            result.message = full_msg;
+            result.message = full_msg.substr(1);
             result.type = MESSAGE;
             for (int j = 1; j <= fd_max; j++)
             {
