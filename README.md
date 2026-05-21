@@ -28,10 +28,11 @@ A precompiled static library release is available under:
 Release Tag: v1
 ```
 
-Download:
-- `ChatServer.h`
-- `ChatClient.h`
-- `libchat.a`
+Download the zip file which includes
+- `/include/ChatServer.h`
+- `/include/ChatClient.h`
+- `/lib/libchat.a`
+
 
 Then include the headers and link the static library while compiling.
 
