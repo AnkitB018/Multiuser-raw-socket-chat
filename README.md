@@ -1,101 +1,308 @@
-# Multiuser Socket Chat (C++)
+# Multiuser Socket Chat Library (C++)
 
-A multi-client terminal chat application built using **raw TCP sockets in C++**, supporting multiple users concurrently using the `select()` system call (event-driven I/O).
+A reusable multi-client terminal chat library built using **raw TCP sockets in C++**, using `select()` for event-driven I/O multiplexing.
 
----
-
-## 🚀 Features
-
-- Multi-user chat over TCP
-- Concurrent client handling using `select()` (no threads)
-- Username system with duplicate name rejection
-- Colored terminal output for better readability
-- Real-time message broadcasting
-- Private messaging support
+This project started as a low-level socket chat application and was later refactored into a reusable event-driven networking library.
 
 ---
 
-## 🧠 Concepts Used
+# 🚀 Features
 
-- Low-level socket programming (`socket`, `bind`, `listen`, `accept`, `recv`, `send`)
-- I/O multiplexing with `select()`
-- Basic client-server protocol design
-- State management (`fd → username` mapping)
+- Multi-client TCP chat system
+- Event-driven architecture using `select()`
+- Reusable `ChatServer` and `ChatClient` classes
+- Username system with duplicate-name rejection
+- Broadcast and private messaging
+- Command support
+- ANSI terminal colour support
+- Event-based frontend/backend separation
+- Static library build (`.a`) support
 
 ---
 
-## 💬 Commands
+# 📦 Download & Use
+
+A precompiled static library release is available under:
+
+```text
+Release Tag: v1
+```
+
+Download:
+- `ChatServer.h`
+- `ChatClient.h`
+- `libchat.a`
+
+Then include the headers and link the static library while compiling.
+
+---
+
+# 🛠️ Linking the Library
+
+Example compile command:
+
+```bash
+g++ main.cpp -I./include -L./lib -lchat
+```
+
+Where:
+
+- `-I` → include path for headers
+- `-L` → library path
+- `-lchat` → links `libchat.a`
+
+---
+
+# 🧠 Library Design
+
+The library follows an **event-driven architecture**.
+
+Both `ChatServer` and `ChatClient` expose a:
+
+```cpp
+Event run();
+```
+
+method which processes **one network event at a time**.
+
+Each event contains:
+
+```cpp
+event.type
+event.message
+```
+
+---
+
+# 📌 Available Event Types
+
+| Event | Description |
+|-------|-------------|
+| `NONE` | No meaningful event |
+| `MESSAGE` | Normal chat message |
+| `PERSONAL` | Private message |
+| `SERVER` | System/server response |
+| `USER_JOIN` | User joined chat |
+| `USER_LEFT` | User disconnected |
+| `ERROR` | Recoverable error |
+| `FATAL` | Fatal connection/server issue |
+
+---
+
+# 🎨 Terminal Colours
+
+ANSI colour macros are already defined inside the headers.
+
+Example:
+
+```cpp
+cout << YELLOW << "Hello" << RESET << endl;
+```
+
+Available colours include:
+
+```cpp
+RED
+GREEN
+BLUE
+YELLOW
+CYAN
+MAGENTA
+RESET
+```
+
+---
+
+# 💬 Commands
 
 | Command | Description |
 |----------|-------------|
 | `/users` | List all connected users |
-| `/rename <name>` | Change your username |
-| `/msg <name> <text>` | Send a private message |
+| `/rename <name>` | Change username |
+| `/msg <name> <text>` | Send private message |
 
 ---
 
-## 🛠️ How to Run
+# ⚡ Basic Server Usage
 
-### 1. Compile
+Initialize the server:
 
-```bash
-g++ server.cpp -o server
-g++ client.cpp -o client
+```cpp
+ChatServer srv("3456");
 ```
 
-### 2. Start Server
+Run the event loop:
 
-```bash
-./server
-```
+```cpp
+while(true){
+    Event state = srv.run();
 
-Or specify a custom port:
+    if(state.type == USER_JOIN){
+        cout << GREEN << state.message << RESET << endl;
+    }
 
-```bash
-./server 8080
+    if(state.type == MESSAGE){
+        cout << BLUE << state.message << RESET << endl;
+    }
+
+    if(state.type == USER_LEFT){
+        cout << YELLOW << state.message << RESET << endl;
+    }
+
+    if(state.type == ERROR){
+        cout << RED << state.message << RESET << endl;
+    }
+}
 ```
 
 ---
 
-### 3. Start Client(s)
+# ⚡ Basic Client Usage
 
-```bash
-./client
+Initialize the client:
+
+```cpp
+ChatClient clt("3456", "127.0.0.1");
 ```
 
-Connect to a custom IP:
+Select username until accepted:
 
-```bash
-./client 192.168.1.10
+```cpp
+while(true){
+    Event result = clt.select_username();
+
+    if(result.type == ERROR){
+        cout << result.message << endl;
+        continue;
+    }
+
+    break;
+}
 ```
 
-Connect to a custom IP and port:
+Run the client event loop:
 
-```bash
-./client 192.168.1.10 8080
+```cpp
+while(true){
+    Event state = clt.run();
+
+    if(state.type == MESSAGE){
+        cout << state.message << endl;
+    }
+
+    if(state.type == PERSONAL){
+        cout << CYAN << state.message << RESET << endl;
+    }
+
+    if(state.type == SERVER){
+        cout << MAGENTA << state.message << RESET << endl;
+    }
+
+    if(state.type == FATAL){
+        cout << RED << state.message << RESET << endl;
+        break;
+    }
+}
 ```
-
-- Enter a username (duplicates are rejected)
-- Start chatting!
 
 ---
 
-## 📌 Notes
+# 📂 Example Implementations
 
-- If custom IP for client is not selected, 127.0.0.1 is will be used.
-- For both client and server, if port is not defined then 3456 is used.
-- The server handles multiple clients using `select()` (event-loop based, no multithreading)
-- ANSI escape codes are used for colored terminal output
-- Designed as a learning project for low-level networking and system design
+Inside:
+
+```text
+lib/USE
+```
+
+you can find example implementations demonstrating how to:
+- create a server
+- create clients
+- handle events
+- display coloured terminal output
+- build custom frontends using the library
 
 ---
 
-## 📦 Future Improvements
+# 📁 Project Structure
 
-- Refactor into reusable class/library (under work inside lib)
+```text
+lib/
+│
+├── include/
+│   ├── ChatServer.h
+│   └── ChatClient.h
+│
+├── src/
+│   ├── ChatServer.cpp
+│   └── ChatClient.cpp
+│
+├── build/
+│   └── libchat.a
+│
+└── USE/
+    ├── server_example.cpp
+    └── client_example.cpp
+```
 
 ---
 
-## 🧑‍💻 Author
+# 🧪 Original Raw-Socket Implementations
 
-Built as part of learning systems programming, networking, and C++.
+The root project directory also contains the original:
+- `server.cpp`
+- `client.cpp`
+
+implementations created before converting the project into a reusable library.
+
+These files directly use:
+- `socket`
+- `bind`
+- `listen`
+- `accept`
+- `recv`
+- `send`
+- `select`
+
+without the abstraction layer provided by the library.
+
+---
+
+# 🧠 Concepts Used
+
+- Low-level socket programming
+- TCP networking
+- `select()`-based I/O multiplexing
+- Event-driven system design
+- State management
+- Basic application-layer protocol design
+- Static library packaging (`.a`)
+- Reusable C++ API architecture
+
+---
+
+# 📌 Notes
+
+- Default localhost IP:
+  
+```text
+127.0.0.1
+```
+
+- Default port:
+
+```text
+3456
+```
+
+- Current implementation targets POSIX systems (Linux/macOS)
+
+---
+
+# 🧑‍💻 Author
+
+Built as part of learning:
+- systems programming
+- networking
+- reusable library/API design
+- event-driven architecture in C++
