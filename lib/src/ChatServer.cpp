@@ -1,5 +1,5 @@
 #include<iostream>
-#include"./ChatServer.h"
+#include"../include/ChatServer.h"
 #include <netdb.h> //address resolution functions
 #include <sys/socket.h> //socket functions
 #include <unistd.h>
